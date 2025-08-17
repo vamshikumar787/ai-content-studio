@@ -164,241 +164,241 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- Firebase Configuration ---
-            const firebaseConfig = {
-                apiKey: "AIzaSyBK1SneiB2rvobiyg203THhiNOT3MyZNgM",
-                authDomain: "ai-social-media-post-gen-769fa.firebaseapp.com",
-                projectId: "ai-social-media-post-gen-769fa",
-                storageBucket: "ai-social-media-post-gen-769fa.appspot.com",
-                messagingSenderId: "827150121127",
-                appId: "1:827150121127:web:5b85ce60293cb91cd14382",
-                measurementId: "G-EKB0Y52LTZ"
-            };
-            firebase.initializeApp(firebaseConfig);
-            const auth = firebase.auth();
-            
-            // --- DOM Elements ---
-            const appSidebar = document.getElementById('appSidebar');
-            const appMainContent = document.getElementById('appMainContent');
-            const initialLoginModal = document.getElementById('initialLoginModal');
-            const emailModal = document.getElementById('emailModal');
-            const phoneModal = document.getElementById('phoneModal');
-            const otpModal = document.getElementById('otpModal');
-            const userPhoto = document.getElementById('userPhoto');
-            const userName = document.getElementById('userName');
-            const logoutBtn = document.getElementById('logoutBtn');
-            const chatWindow = document.getElementById('chatWindow');
-            const contentForm = document.getElementById('contentForm');
-            const newChatBtn = document.getElementById('newChatBtn');
-            const historyList = document.getElementById('historyList');
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBK15neIB2rvobiyg203THhiNOT3MyZngM",
+            authDomain: "ai-social-media-post-gen-769fa.firebaseapp.com",
+            projectId: "ai-social-media-post-gen-769fa",
+            storageBucket: "ai-social-media-post-gen-769fa.firebasestorage.app",
+            messagingSenderId: "827150121127",
+            appId: "1:827150121127:web:eabf9b56573f993fd14382",
+            measurementId: "G-5BL70LVSM9"
+        };
 
-            const BACKEND_URL = 'https://ai-content-studio.onrender.com';
-            let currentChatId = null;
-            let isLoginInProgress = false; // Flag to prevent multiple popup attempts
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
 
-            // --- Modal Controls ---
-            window.openModal = (modalId) => document.getElementById(modalId).classList.add('active');
-            window.closeModal = (modalId) => {
-                const modal = document.getElementById(modalId);
-                modal.classList.remove('active');
-                if (!auth.currentUser && modalId !== 'initialLoginModal') {
-                    openModal('initialLoginModal');
-                }
-            };
+        // DOM Elements
+        const appSidebar = document.getElementById('appSidebar');
+        const appMainContent = document.getElementById('appMainContent');
+        const initialLoginModal = document.getElementById('initialLoginModal');
+        const emailModal = document.getElementById('emailModal');
+        const phoneModal = document.getElementById('phoneModal');
+        const otpModal = document.getElementById('otpModal');
+        const userPhoto = document.getElementById('userPhoto');
+        const userName = document.getElementById('userName');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const chatWindow = document.getElementById('chatWindow');
+        const contentForm = document.getElementById('contentForm');
+        const newChatBtn = document.getElementById('newChatBtn');
+        const historyList = document.getElementById('historyList');
 
-            // --- Auth Button Listeners ---
-            document.getElementById('googleSignInBtn').addEventListener('click', () => {
-                if (isLoginInProgress) return; // Prevent multiple clicks
-                isLoginInProgress = true;
+        const BACKEND_URL = 'https://ai-content-studio.onrender.com';
+        let currentChatId = null;
+        let isLoginInProgress = false;
 
-                const provider = new firebase.auth.GoogleAuthProvider();
-                auth.signInWithPopup(provider)
-                    .then((result) => {
-                        console.log("Login successful:", result.user);
-                        isLoginInProgress = false;
-                    })
-                    .catch((error) => {
-                        console.error("Popup login error:", error.code, error.message);
-                        alert("Login failed: " + error.message);
-                        isLoginInProgress = false;
-                    });
-            });
-
-            document.getElementById('emailSignInBtn').addEventListener('click', () => {
-                closeModal('initialLoginModal');
-                openModal('emailModal');
-            });
-
-            document.getElementById('phoneSignInBtn').addEventListener('click', () => {
-                closeModal('initialLoginModal');
-                openModal('phoneModal');
-            });
-
-            // --- Email Auth ---
-            document.getElementById('emailForm').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const email = document.getElementById('emailInput').value;
-                const password = document.getElementById('passwordInput').value;
-                auth.signInWithEmailAndPassword(email, password)
-                    .catch(error => {
-                        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                            auth.createUserWithEmailAndPassword(email, password)
-                                .catch(err => alert(err.message));
-                        } else {
-                            alert(error.message);
-                        }
-                    });
-            });
-
-            // --- Phone Auth ---
-            let confirmationResult;
-            window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 
-                'size': 'invisible',
-                'callback': (response) => {}
-            });
-            
-            document.getElementById('phoneForm').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const phoneNumber = document.getElementById('phoneInput').value;
-                auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
-                    .then(result => {
-                        confirmationResult = result;
-                        closeModal('phoneModal');
-                        openModal('otpModal');
-                    }).catch(err => {
-                        alert("Error sending OTP: " + err.message);
-                        if (window.recaptchaWidgetId) {
-                            grecaptcha.reset(window.recaptchaWidgetId);
-                        }
-                    });
-            });
-            
-            document.getElementById('otpForm').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const otp = document.getElementById('otpInput').value;
-                confirmationResult.confirm(otp)
-                    .catch(err => alert("Invalid OTP: " + err.message));
-            });
-
-            // --- Auth State Change Handler ---
-            auth.onAuthStateChanged(user => {
-                if (user) {
-                    initialLoginModal.classList.remove('active');
-                    closeModal('emailModal'); closeModal('phoneModal'); closeModal('otpModal');
-                    appSidebar.classList.remove('hidden');
-                    appMainContent.classList.remove('hidden');
-                    
-                    const photo = user.photoURL || `https://ui-avatars.com/api/?name=${user.email || user.phoneNumber}&background=random&color=fff`;
-                    const name = user.displayName || user.email || user.phoneNumber;
-                    userName.textContent = name;
-                    userPhoto.src = photo;
-
-                    loadHistory();
-                } else {
-                    appSidebar.classList.add('hidden');
-                    appMainContent.classList.add('hidden');
-                    openModal('initialLoginModal');
-                }
-            });
-            
-            logoutBtn.addEventListener('click', () => auth.signOut());
-            newChatBtn.addEventListener('click', () => {
-                currentChatId = null;
-                chatWindow.innerHTML = '';
-                document.querySelectorAll('.history-item').forEach(item => item.classList.remove('active'));
-            });
-            contentForm.addEventListener('submit', handleGenerate);
-
-            async function handleGenerate(e) {
-                e.preventDefault();
-                const topic = document.getElementById('topic').value.trim();
-                const platform = document.getElementById('platform').value;
-                const tone = document.getElementById('tone').value;
-                if (!topic) return;
-
-                const userRequestText = `**Topic:** ${topic}\n**Platform:** ${platform}\n**Tone:** ${tone}`;
-                appendMessage('user', userRequestText);
-                const modelResponseDiv = appendMessage('model', '...');
-
-                try {
-                    const token = await auth.currentUser.getIdToken();
-                    const response = await fetch(`${BACKEND_URL}/generate`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ topic, platform, tone })
-                    });
-                    if (!response.ok) throw new Error("Backend request failed.");
-                    const data = await response.json();
-                    modelResponseDiv.querySelector('.message-content').innerHTML = marked.parse(data.response);
-                    await loadHistory();
-                } catch (error) {
-                    console.error('Generate error:', error.message);
-                    modelResponseDiv.querySelector('.message-content').textContent = "Sorry, something went wrong.";
-                }
+        // Modal Controls
+        window.openModal = (modalId) => document.getElementById(modalId).classList.add('active');
+        window.closeModal = (modalId) => {
+            const modal = document.getElementById(modalId);
+            modal.classList.remove('active');
+            if (!auth.currentUser && modalId !== 'initialLoginModal') {
+                openModal('initialLoginModal');
             }
+        };
 
-            async function loadHistory() {
-                try {
-                    if (!auth.currentUser) return;
-                    const token = await auth.currentUser.getIdToken();
-                    const response = await fetch(`${BACKEND_URL}/history`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    const history = await response.json();
-                    renderHistorySidebar(history);
-                } catch (error) {
-                    console.error("Failed to load history:", error);
-                }
-            }
+        // Auth Button Listeners
+        document.getElementById('googleSignInBtn').addEventListener('click', () => {
+            if (isLoginInProgress) return;
+            isLoginInProgress = true;
 
-            async function loadChat(chatId) {
-                currentChatId = chatId;
-                chatWindow.innerHTML = 'Loading chat...';
-                document.querySelectorAll('.history-item').forEach(item => {
-                    item.classList.toggle('active', item.dataset.chatId === chatId);
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider)
+                .then((result) => {
+                    console.log("Login successful:", result.user);
+                    isLoginInProgress = false;
+                })
+                .catch((error) => {
+                    console.error("Popup login error:", error.code, error.message);
+                    alert("Login failed: " + error.message);
+                    isLoginInProgress = false;
                 });
-                try {
-                    const token = await auth.currentUser.getIdToken();
-                    const response = await fetch(`${BACKEND_URL}/chat/${chatId}`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    const messages = await response.json();
-                    chatWindow.innerHTML = '';
-                    messages.forEach(msg => appendMessage(msg.role, msg.text));
-                } catch (error) {
-                    chatWindow.innerHTML = 'Failed to load this chat.';
-                }
-            }
+        });
 
-            function renderHistorySidebar(history) {
-                historyList.innerHTML = '';
-                history.forEach(chat => {
-                    const li = document.createElement('li');
-                    li.className = 'history-item';
-                    li.textContent = chat.title;
-                    li.dataset.chatId = chat.id;
-                    li.addEventListener('click', () => loadChat(chat.id));
-                    historyList.appendChild(li);
+        document.getElementById('emailSignInBtn').addEventListener('click', () => {
+            closeModal('initialLoginModal');
+            openModal('emailModal');
+        });
+
+        document.getElementById('phoneSignInBtn').addEventListener('click', () => {
+            closeModal('initialLoginModal');
+            openModal('phoneModal');
+        });
+
+        // Email Auth
+        document.getElementById('emailForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+            auth.signInWithEmailAndPassword(email, password)
+                .catch(error => {
+                    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                        auth.createUserWithEmailAndPassword(email, password)
+                            .catch(err => alert(err.message));
+                    } else {
+                        alert(error.message);
+                    }
                 });
-            }
+        });
 
-            function appendMessage(role, text) {
-                const messageEl = createMessageElement(role, text);
-                chatWindow.appendChild(messageEl);
-                chatWindow.scrollTop = chatWindow.scrollHeight;
-                return messageEl;
-            }
+        // Phone Auth
+        let confirmationResult;
+        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 
+            'size': 'invisible',
+            'callback': (response) => {}
+        });
+        
+        document.getElementById('phoneForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const phoneNumber = document.getElementById('phoneInput').value;
+            auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
+                .then(result => {
+                    confirmationResult = result;
+                    closeModal('phoneModal');
+                    openModal('otpModal');
+                }).catch(err => {
+                    alert("Error sending OTP: " + err.message);
+                    if (window.recaptchaWidgetId) {
+                        grecaptcha.reset(window.recaptchaWidgetId);
+                    }
+                });
+        });
+        
+        document.getElementById('otpForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const otp = document.getElementById('otpInput').value;
+            confirmationResult.confirm(otp)
+                .catch(err => alert("Invalid OTP: " + err.message));
+        });
 
-            function createMessageElement(role, text) {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `message ${role}`;
-                const iconClass = role === 'user' ? 'bi-person-circle' : 'bi-gem';
-                const iconColor = role === 'user' ? '' : 'style="color: var(--accent-glow);"';
-                messageDiv.innerHTML = `<i class="bi ${iconClass} icon" ${iconColor}></i><div class="message-content">${marked.parse(text)}</div>`;
-                return messageDiv;
+        // Auth State Change Handler
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                initialLoginModal.classList.remove('active');
+                closeModal('emailModal'); closeModal('phoneModal'); closeModal('otpModal');
+                appSidebar.classList.remove('hidden');
+                appMainContent.classList.remove('hidden');
+                
+                const photo = user.photoURL || `https://ui-avatars.com/api/?name=${user.email || user.phoneNumber}&background=random&color=fff`;
+                const name = user.displayName || user.email || user.phoneNumber;
+                userName.textContent = name;
+                userPhoto.src = photo;
+
+                loadHistory();
+            } else {
+                appSidebar.classList.add('hidden');
+                appMainContent.classList.add('hidden');
+                openModal('initialLoginModal');
             }
         });
+        
+        logoutBtn.addEventListener('click', () => auth.signOut());
+        newChatBtn.addEventListener('click', () => {
+            currentChatId = null;
+            chatWindow.innerHTML = '';
+            document.querySelectorAll('.history-item').forEach(item => item.classList.remove('active'));
+        });
+        contentForm.addEventListener('submit', handleGenerate);
+
+        async function handleGenerate(e) {
+            e.preventDefault();
+            const topic = document.getElementById('topic').value.trim();
+            const platform = document.getElementById('platform').value;
+            const tone = document.getElementById('tone').value;
+            if (!topic) return;
+
+            const userRequestText = `**Topic:** ${topic}\n**Platform:** ${platform}\n**Tone:** ${tone}`;
+            appendMessage('user', userRequestText);
+            const modelResponseDiv = appendMessage('model', '...');
+
+            try {
+                const token = await auth.currentUser.getIdToken();
+                const response = await fetch(`${BACKEND_URL}/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ topic, platform, tone })
+                });
+                if (!response.ok) throw new Error("Backend request failed.");
+                const data = await response.json();
+                modelResponseDiv.querySelector('.message-content').innerHTML = marked.parse(data.response);
+                await loadHistory();
+            } catch (error) {
+                console.error('Generate error:', error.message);
+                modelResponseDiv.querySelector('.message-content').textContent = "Sorry, something went wrong.";
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                if (!auth.currentUser) return;
+                const token = await auth.currentUser.getIdToken();
+                const response = await fetch(`${BACKEND_URL}/history`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const history = await response.json();
+                renderHistorySidebar(history);
+            } catch (error) {
+                console.error("Failed to load history:", error);
+            }
+        }
+
+        async function loadChat(chatId) {
+            currentChatId = chatId;
+            chatWindow.innerHTML = 'Loading chat...';
+            document.querySelectorAll('.history-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.chatId === chatId);
+            });
+            try {
+                const token = await auth.currentUser.getIdToken();
+                const response = await fetch(`${BACKEND_URL}/chat/${chatId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const messages = await response.json();
+                chatWindow.innerHTML = '';
+                messages.forEach(msg => appendMessage(msg.role, msg.text));
+            } catch (error) {
+                chatWindow.innerHTML = 'Failed to load this chat.';
+            }
+        }
+
+        function renderHistorySidebar(history) {
+            historyList.innerHTML = '';
+            history.forEach(chat => {
+                const li = document.createElement('li');
+                li.className = 'history-item';
+                li.textContent = chat.title;
+                li.dataset.chatId = chat.id;
+                li.addEventListener('click', () => loadChat(chat.id));
+                historyList.appendChild(li);
+            });
+        }
+
+        function appendMessage(role, text) {
+            const messageEl = createMessageElement(role, text);
+            chatWindow.appendChild(messageEl);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+            return messageEl;
+        }
+
+        function createMessageElement(role, text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            const iconClass = role === 'user' ? 'bi-person-circle' : 'bi-gem';
+            const iconColor = role === 'user' ? '' : 'style="color: var(--accent-glow);"';
+            messageDiv.innerHTML = `<i class="bi ${iconClass} icon" ${iconColor}></i><div class="message-content">${marked.parse(text)}</div>`;
+            return messageDiv;
+        }
     </script>
 </body>
 </html>
