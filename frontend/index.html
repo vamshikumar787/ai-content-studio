@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Content Studio - Professional Login</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Firebase SDKs (Compat Version 9.23.0) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #0d0c22; --sidebar-bg: rgba(10, 10, 25, 0.5); --chat-bg: rgba(10, 10, 25, 0.3);
+            --input-bg: rgba(255, 255, 255, 0.05); --text-color: #f0f0f5; --light-text-color: #a0a0c0;
+            --border-color: rgba(255, 255, 255, 0.1); --accent-glow: #a855f7;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-color); color: var(--text-color); display: flex; height: 100vh; overflow: hidden; position: relative; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at 10% 20%, rgba(168, 85, 247, 0.2), transparent 40%), radial-gradient(circle at 80% 90%, rgba(59, 130, 246, 0.2), transparent 40%); animation: moveAurora 20s infinite alternate ease-in-out; z-index: -1; }
+        @keyframes moveAurora { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        .sidebar, .main-content { transition: opacity 0.5s; }
+        .sidebar { width: 260px; height: 100%; background: var(--sidebar-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-right: 1px solid var(--border-color); padding: 1.5rem 1rem; display: flex; flex-direction: column; }
+        .profile-section { display: flex; align-items: center; gap: 10px; margin-bottom: 2rem; }
+        .profile-section img { width: 40px; height: 40px; border-radius: 50%; }
+        .new-chat-btn { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); cursor: pointer; font-size: 1rem; margin-bottom: 2rem; }
+        .history-list { list-style: none; overflow-y: auto; flex-grow: 1; }
+        .history-item { padding: 10px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
+        .history-item:hover, .history-item.active { background-color: var(--input-bg); }
+        .logout-btn { margin-top: auto; color: var(--light-text-color); cursor: pointer; text-align: center; padding: 10px; }
+        
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100%; background: var(--chat-bg); }
+        .chat-window { flex-grow: 1; padding: 1.5rem 2rem; overflow-y: auto; display: flex; flex-direction: column; }
+        .message { max-width: 80%; margin-bottom: 1.5rem; display: flex; gap: 1rem; animation: slideIn 0.5s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .message .icon { font-size: 1.5rem; flex-shrink: 0; padding-top: 5px; }
+        .message-content { padding-top: 4px; }
+        .message.model .icon { color: var(--accent-glow); }
+        .input-area-container { padding: 1.5rem 2rem; background: linear-gradient(to top, rgba(13, 12, 34, 0.8), transparent); border-top: 1px solid var(--border-color); }
+        .input-form { max-width: 900px; margin: 0 auto; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+        #topic, select, .modal-body input { width: 100%; padding: 12px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); font-size: 1rem; }
+        #generateButton, .modal-btn { width: 100%; padding: 14px; background: var(--accent-glow); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.3s; margin-top: 1.5rem; }
+        
+        /* --- NEW MODAL / POPUP STYLES --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal {
+            background: var(--sidebar-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            width: 90%; max-width: 400px;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+            position: relative;
+        }
+        .modal-overlay.active .modal { transform: scale(1); }
+        .modal-header { text-align: center; margin-bottom: 1.5rem; }
+        .modal-header h2 { font-size: 1.5rem; }
+        .modal-body .form-group { margin-bottom: 1rem; }
+        .modal-btn { margin-top: 1rem; }
+        .auth-options button { width: 100%; padding: 12px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); cursor: pointer; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .modal-close { position: absolute; top: 15px; right: 15px; background: none; border: none; color: var(--light-text-color); font-size: 1.5rem; cursor: pointer; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <!-- Main App Structure (initially hidden) -->
+    <div class="sidebar hidden" id="appSidebar">
+        <div class="profile-section" id="profileSection">
+             <img id="userPhoto" src="" alt="User">
+             <span id="userName"></span>
+        </div>
+        <button class="new-chat-btn" id="newChatBtn"><i class="bi bi-plus-lg"></i><span>New Content</span></button>
+        <div class="history-title">History</div>
+        <ul class="history-list" id="historyList"></ul>
+        <div class="logout-btn" id="logoutBtn"><i class="bi bi-box-arrow-right"></i> Logout</div>
+    </div>
+    <div class="main-content hidden" id="appMainContent">
+         <div class="chat-window" id="chatWindow"></div>
+        <div class="input-area-container">
+            <form class="input-form" id="contentForm">
+                <div class="form-group">
+                    <label for="topic">Topic / Description</label>
+                    <textarea id="topic" rows="3" placeholder="e.g., Create a post about teamwork..." style="width:100%; padding:12px; background:var(--input-bg); border:1px solid var(--border-color); border-radius:8px; color:var(--text-color); font-size:1rem; resize:vertical;"></textarea>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group"><label for="platform">Platform</label><select id="platform"><option>LinkedIn</option><option>Twitter</option><option>Instagram</option></select></div>
+                    <div class="form-group"><label for="tone">Tone</label><select id="tone"><option>Professional</option><option>Casual</option><option>Funny</option></select></div>
+                </div>
+                <button type="submit" id="generateButton">Generate Post</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- NEW: All Modals / Popups -->
+    <div class="modal-overlay active" id="initialLoginModal">
+        <div class="modal">
+            <div class="modal-header"><h2>Welcome to AI Content Studio</h2><p>Sign in to continue</p></div>
+            <div class="modal-body auth-options">
+                <button id="googleSignInBtn"><i class="bi bi-google"></i> Continue with Google</button>
+                <button id="emailSignInBtn"><i class="bi bi-envelope-fill"></i> Continue with Email</button>
+                <button id="phoneSignInBtn"><i class="bi bi-telephone-fill"></i> Continue with Phone</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="emailModal">
+        <div class="modal">
+            <button class="modal-close" onclick="closeModal('emailModal')">&times;</button>
+            <div class="modal-header"><h2>Sign in with Email</h2></div>
+            <div class="modal-body">
+                <form id="emailForm">
+                    <div class="form-group"><input type="email" id="emailInput" placeholder="Enter your email" required></div>
+                    <div class="form-group"><input type="password" id="passwordInput" placeholder="Enter your password" required></div>
+                    <button type="submit" class="modal-btn">Sign In / Sign Up</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="phoneModal">
+        <div class="modal">
+            <button class="modal-close" onclick="closeModal('phoneModal')">&times;</button>
+            <div class="modal-header"><h2>Sign in with Phone</h2></div>
+            <div class="modal-body">
+                <form id="phoneForm">
+                    <div class="form-group"><input type="tel" id="phoneInput" placeholder="+91 98765 43210" required></div>
+                    <button type="submit" class="modal-btn">Send OTP</button>
+                    <div id="recaptcha-container" style="margin-top: 1rem;"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="otpModal">
+        <div class="modal">
+            <div class="modal-header"><h2>Verify OTP</h2></div>
+            <div class="modal-body">
+                <form id="otpForm">
+                    <div class="form-group"><input type="text" id="otpInput" placeholder="Enter OTP" required></div>
+                    <button type="submit" class="modal-btn">Verify & Sign In</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Firebase Configuration ---
+            const firebaseConfig = {
+                apiKey: "AIzaSyBK1SneiB2rvobiyg203THhiNOT3MyZNgM",
+                authDomain: "ai-social-media-post-gen-769fa.firebaseapp.com",
+                projectId: "ai-social-media-post-gen-769fa",
+                storageBucket: "ai-social-media-post-gen-769fa.appspot.com",
+                messagingSenderId: "827150121127",
+                appId: "1:827150121127:web:5b85ce60293cb91cd14382",
+                measurementId: "G-EKB0Y52LTZ"
+            };
+            firebase.initializeApp(firebaseConfig);
+            const auth = firebase.auth();
+            
+            // --- DOM Elements ---
+            const appSidebar = document.getElementById('appSidebar');
+            const appMainContent = document.getElementById('appMainContent');
+            const initialLoginModal = document.getElementById('initialLoginModal');
+            const emailModal = document.getElementById('emailModal');
+            const phoneModal = document.getElementById('phoneModal');
+            const otpModal = document.getElementById('otpModal');
+            const userPhoto = document.getElementById('userPhoto');
+            const userName = document.getElementById('userName');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const chatWindow = document.getElementById('chatWindow');
+            const contentForm = document.getElementById('contentForm');
+            const newChatBtn = document.getElementById('newChatBtn');
+            const historyList = document.getElementById('historyList');
+
+            const BACKEND_URL = 'http://localhost:3000';
+            let currentChatId = null;
+            let isLoginInProgress = false; // Flag to prevent multiple popup attempts
+
+            // --- Modal Controls ---
+            window.openModal = (modalId) => document.getElementById(modalId).classList.add('active');
+            window.closeModal = (modalId) => {
+                const modal = document.getElementById(modalId);
+                modal.classList.remove('active');
+                if (!auth.currentUser && modalId !== 'initialLoginModal') {
+                    openModal('initialLoginModal');
+                }
+            };
+
+            // --- Auth Button Listeners ---
+            document.getElementById('googleSignInBtn').addEventListener('click', () => {
+                if (isLoginInProgress) return; // Prevent multiple clicks
+                isLoginInProgress = true;
+
+                const provider = new firebase.auth.GoogleAuthProvider();
+                auth.signInWithPopup(provider)
+                    .then((result) => {
+                        console.log("Login successful:", result.user);
+                        isLoginInProgress = false;
+                    })
+                    .catch((error) => {
+                        console.error("Popup login error:", error.code, error.message);
+                        alert("Login failed: " + error.message);
+                        isLoginInProgress = false;
+                    });
+            });
+
+            document.getElementById('emailSignInBtn').addEventListener('click', () => {
+                closeModal('initialLoginModal');
+                openModal('emailModal');
+            });
+
+            document.getElementById('phoneSignInBtn').addEventListener('click', () => {
+                closeModal('initialLoginModal');
+                openModal('phoneModal');
+            });
+
+            // --- Email Auth ---
+            document.getElementById('emailForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const email = document.getElementById('emailInput').value;
+                const password = document.getElementById('passwordInput').value;
+                auth.signInWithEmailAndPassword(email, password)
+                    .catch(error => {
+                        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                            auth.createUserWithEmailAndPassword(email, password)
+                                .catch(err => alert(err.message));
+                        } else {
+                            alert(error.message);
+                        }
+                    });
+            });
+
+            // --- Phone Auth ---
+            let confirmationResult;
+            window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 
+                'size': 'invisible',
+                'callback': (response) => {}
+            });
+            
+            document.getElementById('phoneForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const phoneNumber = document.getElementById('phoneInput').value;
+                auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
+                    .then(result => {
+                        confirmationResult = result;
+                        closeModal('phoneModal');
+                        openModal('otpModal');
+                    }).catch(err => {
+                        alert("Error sending OTP: " + err.message);
+                        if (window.recaptchaWidgetId) {
+                            grecaptcha.reset(window.recaptchaWidgetId);
+                        }
+                    });
+            });
+            
+            document.getElementById('otpForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const otp = document.getElementById('otpInput').value;
+                confirmationResult.confirm(otp)
+                    .catch(err => alert("Invalid OTP: " + err.message));
+            });
+
+            // --- Auth State Change Handler ---
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    initialLoginModal.classList.remove('active');
+                    closeModal('emailModal'); closeModal('phoneModal'); closeModal('otpModal');
+                    appSidebar.classList.remove('hidden');
+                    appMainContent.classList.remove('hidden');
+                    
+                    const photo = user.photoURL || `https://ui-avatars.com/api/?name=${user.email || user.phoneNumber}&background=random&color=fff`;
+                    const name = user.displayName || user.email || user.phoneNumber;
+                    userName.textContent = name;
+                    userPhoto.src = photo;
+
+                    loadHistory();
+                } else {
+                    appSidebar.classList.add('hidden');
+                    appMainContent.classList.add('hidden');
+                    openModal('initialLoginModal');
+                }
+            });
+            
+            logoutBtn.addEventListener('click', () => auth.signOut());
+            newChatBtn.addEventListener('click', () => {
+                currentChatId = null;
+                chatWindow.innerHTML = '';
+                document.querySelectorAll('.history-item').forEach(item => item.classList.remove('active'));
+            });
+            contentForm.addEventListener('submit', handleGenerate);
+
+            async function handleGenerate(e) {
+                e.preventDefault();
+                const topic = document.getElementById('topic').value.trim();
+                const platform = document.getElementById('platform').value;
+                const tone = document.getElementById('tone').value;
+                if (!topic) return;
+
+                const userRequestText = `**Topic:** ${topic}\n**Platform:** ${platform}\n**Tone:** ${tone}`;
+                appendMessage('user', userRequestText);
+                const modelResponseDiv = appendMessage('model', '...');
+
+                try {
+                    const token = await auth.currentUser.getIdToken();
+                    const response = await fetch(`${BACKEND_URL}/generate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ topic, platform, tone })
+                    });
+                    if (!response.ok) throw new Error("Backend request failed.");
+                    const data = await response.json();
+                    modelResponseDiv.querySelector('.message-content').innerHTML = marked.parse(data.response);
+                    await loadHistory();
+                } catch (error) {
+                    console.error('Generate error:', error.message);
+                    modelResponseDiv.querySelector('.message-content').textContent = "Sorry, something went wrong.";
+                }
+            }
+
+            async function loadHistory() {
+                try {
+                    if (!auth.currentUser) return;
+                    const token = await auth.currentUser.getIdToken();
+                    const response = await fetch(`${BACKEND_URL}/history`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const history = await response.json();
+                    renderHistorySidebar(history);
+                } catch (error) {
+                    console.error("Failed to load history:", error);
+                }
+            }
+
+            async function loadChat(chatId) {
+                currentChatId = chatId;
+                chatWindow.innerHTML = 'Loading chat...';
+                document.querySelectorAll('.history-item').forEach(item => {
+                    item.classList.toggle('active', item.dataset.chatId === chatId);
+                });
+                try {
+                    const token = await auth.currentUser.getIdToken();
+                    const response = await fetch(`${BACKEND_URL}/chat/${chatId}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const messages = await response.json();
+                    chatWindow.innerHTML = '';
+                    messages.forEach(msg => appendMessage(msg.role, msg.text));
+                } catch (error) {
+                    chatWindow.innerHTML = 'Failed to load this chat.';
+                }
+            }
+
+            function renderHistorySidebar(history) {
+                historyList.innerHTML = '';
+                history.forEach(chat => {
+                    const li = document.createElement('li');
+                    li.className = 'history-item';
+                    li.textContent = chat.title;
+                    li.dataset.chatId = chat.id;
+                    li.addEventListener('click', () => loadChat(chat.id));
+                    historyList.appendChild(li);
+                });
+            }
+
+            function appendMessage(role, text) {
+                const messageEl = createMessageElement(role, text);
+                chatWindow.appendChild(messageEl);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+                return messageEl;
+            }
+
+            function createMessageElement(role, text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${role}`;
+                const iconClass = role === 'user' ? 'bi-person-circle' : 'bi-gem';
+                const iconColor = role === 'user' ? '' : 'style="color: var(--accent-glow);"';
+                messageDiv.innerHTML = `<i class="bi ${iconClass} icon" ${iconColor}></i><div class="message-content">${marked.parse(text)}</div>`;
+                return messageDiv;
+            }
+        });
+    </script>
+</body>
+</html>
